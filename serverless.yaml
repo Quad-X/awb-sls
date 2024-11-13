@@ -1,0 +1,47 @@
+service: awb-sls
+
+useDotenv: true
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  memorySize: 1024
+  runtime: provided.al2
+  versionFunctions: false
+  architecture: x86_64
+  region: ap-southeast-1
+  stage: ${opt:stage, 'dev'}
+  stackTags:
+    Business: Platform
+    app_name: awb-sls
+    app_env: ${self:provider.stage}
+
+layers:
+  wkhtmltoxLayer:
+    name: wkhtmltox
+    description: wkhtmltox binaries for pdf/image generation
+    package:
+      artifact: layers/wkhtmltox-0.12.6-4.amazonlinux2_lambda.zip
+
+functions:
+  app:
+    name : ${self:service}-app-${self:provider.stage}
+    handler: bootstrap
+    package:
+      individually: true
+      artifact: app.zip
+    events:
+      - httpApi:
+          method: ANY
+          path: /{proxy+}
+      - httpApi:
+          method: ANY
+          path: /
+    layers:
+      - { Ref: WkhtmltoxLayerLambdaLayer }
+      - arn:aws:lambda:${aws:region}:753240598075:layer:LambdaAdapterLayerX86:23
+    environment:
+      PORT: "8080"
+      TMP_DIR: /tmp
+      FONTCONFIG_PATH: /opt/fonts
+      LD_LIBRARY_PATH: /opt/lib
